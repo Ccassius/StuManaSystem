@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"encoding/json"
@@ -7,47 +7,8 @@ import (
 	"io/ioutil"
 )
 
-// 枚举 用户输入
-const (
-	ADD = iota + 1
-	DELETE
-	CHANGE
-	SELECT
-	SHOW
-	EXIT
-)
-
 // 文件路径
 const FILE_NAME = "D:\\StuInfo.txt"
-
-
-func main() {
-	stuManger := NewStudentManager("jack", 20)
-	manger, ok := stuManger.(*StudentManager)
-	if ok {
-		manger.start()
-	}
-}
-
-
-// 学生结构体
-type Student struct {
-	Id uint8
-	Name string
-	Age uint8
-	Grade Subject_Grade
-}
-
-
-// 科目成绩结构体，总分和平均分属性使用公开标识符，为了后续序列化到文件时，可以被访问到
-type Subject_Grade struct {
-	Chinese uint8
-	Math uint8
-	English uint8
-	Total uint8
-	Average float32
-}
-
 
 // 学生管理员结构体
 type StudentManager struct {
@@ -55,21 +16,6 @@ type StudentManager struct {
 	Age uint8
 	studentMap map[uint8]*Student
 }
-
-
-// 接口
-type StuManaSystem interface {
-	getStuInfo() error
-	saveStuInfo() error
-	addStu(id uint8, name string, age uint8, chinese uint8, math uint8, english uint8, total uint8, average float32)  error
-	deleteStu(id uint8) error
-	ChangeStu(stu *Student, newId uint8, newName string, newAge, newChinese, newMath, newEnglish uint8) error
-	menuShow()
-	showAllStu() error
-	selectStu(id uint8) error
-	isExistStu(id uint8) (bool, error)
-}
-
 
 // 学生管理员的构造方法
 func NewStudentManager(name string, age uint8) StuManaSystem{
@@ -80,9 +26,22 @@ func NewStudentManager(name string, age uint8) StuManaSystem{
 	}
 }
 
+// 接口
+type StuManaSystem interface {
+	GetStuInfo() error
+	SaveStuInfo() error
+	AddStu(id uint8, name string, age uint8, chinese uint8, math uint8, english uint8, total uint8, average float32)  error
+	DeleteStu(id uint8) error
+	ChangeStu(stu *Student, newId uint8, newName string, newAge, newChinese, newMath, newEnglish uint8) error
+	MenuShow()
+	ShowAllStu() error
+	SelectStu(id uint8) error
+	IsExistStu(id uint8) (bool, error)
+	Start()
+}
 
 // 从文件中读取数据
-func (s *StudentManager) getStuInfo() error {
+func (s *StudentManager) GetStuInfo() error {
 	// 从文件中读取数据
 	content, err := ioutil.ReadFile(FILE_NAME)
 	if err != nil {
@@ -96,7 +55,7 @@ func (s *StudentManager) getStuInfo() error {
 
 
 // 将数据序列化存储到文件中
-func (s *StudentManager) saveStuInfo() error {
+func (s *StudentManager) SaveStuInfo() error {
 	// 序列化
 	content, err :=  json.Marshal(&s.studentMap)
 	if err != nil {
@@ -113,26 +72,16 @@ func (s *StudentManager) saveStuInfo() error {
 
 
 // 增加一个新学生
-func (s *StudentManager) addStu(id uint8, name string, age uint8, chinese uint8, math uint8, english uint8, total uint8, average float32)  error {
-	stu := &Student{
-		Id: id,
-		Name: name,
-		Age: age,
-		Grade: Subject_Grade{
-			Chinese: chinese,
-			Math: math,
-			English: english,
-			Total: total,
-			Average: average,
-		},
-	}
+func (s *StudentManager) AddStu(id uint8, name string, age uint8, chinese uint8, math uint8, english uint8, total uint8, average float32)  error {
+	grade := NewSubjectGrade(chinese, math, english, total, average)
+	stu := NewStudent(id, name, age, grade)
 	s.studentMap[stu.Id] = stu
 	return nil
 }
 
 
 // 删除一个学生（学生map）
-func (s *StudentManager) deleteStu(id uint8) error {
+func (s *StudentManager) DeleteStu(id uint8) error {
 	if _, ok := s.studentMap[id]; ok {
 		delete(s.studentMap, id)
 		return nil
@@ -160,7 +109,7 @@ func (s *StudentManager) ChangeStu(stu *Student, newId uint8, newName string, ne
 
 
 //菜单
-func (s *StudentManager) menuShow() {
+func (s *StudentManager) MenuShow() {
 	fmt.Println("欢迎使用学生管理系统")
 	fmt.Printf("%d........................增加学生\n", ADD)
 	fmt.Printf("%d........................删除学生\n", DELETE)
@@ -173,7 +122,7 @@ func (s *StudentManager) menuShow() {
 
 
 //显示所有学生
-func (s *StudentManager) showAllStu() error {
+func (s *StudentManager) ShowAllStu() error {
 	if s.studentMap == nil {
 		return errors.New("studentMap 为 nil")
 	}
@@ -191,7 +140,7 @@ func (s *StudentManager) showAllStu() error {
 
 
 // 根据编号查询学生信息
-func (s *StudentManager) selectStu(id uint8) error {
+func (s *StudentManager) SelectStu(id uint8) error {
 	if s.studentMap == nil {
 		return errors.New("studentMap 为 nil")
 	}
@@ -209,7 +158,7 @@ func (s *StudentManager) selectStu(id uint8) error {
 
 
 // 判断编号为id的学生是否存在
-func (s *StudentManager) isExistStu(id uint8) (bool, error) {
+func (s *StudentManager) IsExistStu(id uint8) (bool, error) {
 	if s.studentMap == nil {
 		return false, errors.New("studentMap 为 nil,学生不存在")
 	}
@@ -219,16 +168,16 @@ func (s *StudentManager) isExistStu(id uint8) (bool, error) {
 
 
 // 整合学生管理系统的功能
-func (s *StudentManager) start() {
+func (s *StudentManager) Start() {
 	// 从文件中读取数据存储到 s.studentMap 中
-	err := s.getStuInfo()
+	err := s.GetStuInfo()
 	if err != nil {
 		fmt.Println("读取文件数据出错：", err)
 		return
 	}
 
 	for {
-		s.menuShow()
+		s.MenuShow()
 		var inputNum uint8
 		fmt.Scan(&inputNum)
 
@@ -245,7 +194,23 @@ func (s *StudentManager) start() {
 			)
 			for {
 				fmt.Scan(&id, &name, &age, &chinese, &math, &english)
-				err := s.addStu(id, name, age, chinese,math, english, (chinese + math + english), (float32)(chinese + math + english) / 3)
+				exist, err := s.IsExistStu(id)
+				if exist {
+					fmt.Printf("id为%d的学生已存在\n", id)
+
+					fmt.Println("继续添加请按1，返回上一级请按任意键")
+					var flag int
+					fmt.Scan(&flag)
+					if flag == 1 {
+						fmt.Println("请输入学生id、姓名、年龄、语文成绩、数学成绩、英语成绩")
+						continue
+					} else {
+						break
+					}
+
+					continue
+				}
+				err = s.AddStu(id, name, age, chinese,math, english, (chinese + math + english), (float32)(chinese + math + english) / 3)
 				if err != nil {
 					fmt.Println(err)
 				} else {
@@ -255,6 +220,7 @@ func (s *StudentManager) start() {
 				var flag int
 				fmt.Scan(&flag)
 				if flag == 1 {
+					fmt.Println("请输入学生id、姓名、年龄、语文成绩、数学成绩、英语成绩")
 					continue
 				} else {
 					break
@@ -264,7 +230,7 @@ func (s *StudentManager) start() {
 			var id uint8
 			fmt.Println("请输入要删除的学生的id")
 			fmt.Scan(&id)
-			err := s.deleteStu(id)
+			err := s.DeleteStu(id)
 			if err != nil {
 				fmt.Println(err)
 			} else {
@@ -274,7 +240,7 @@ func (s *StudentManager) start() {
 			var id uint8
 			fmt.Println("请输入需要修改的学生id")
 			fmt.Scan(&id)
-			exist, err := s.isExistStu(id)
+			exist, err := s.IsExistStu(id)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -304,17 +270,17 @@ func (s *StudentManager) start() {
 			var id uint8
 			fmt.Println("请输入要查询的学生的id")
 			fmt.Scan(&id)
-			err := s.selectStu(id)
+			err := s.SelectStu(id)
 			if err != nil {
 				fmt.Println(err)
 			}
 		case SHOW:
-			err := s.showAllStu()
+			err := s.ShowAllStu()
 			if err != nil {
 				fmt.Println(err)
 			}
 		case EXIT:
-			err := s.saveStuInfo()
+			err := s.SaveStuInfo()
 			if err != nil {
 				fmt.Println("保存文件出错：", err)
 			} else {
@@ -326,7 +292,3 @@ func (s *StudentManager) start() {
 		}
 	}
 }
-
-
-
-
